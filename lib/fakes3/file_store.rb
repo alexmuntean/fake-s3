@@ -141,6 +141,7 @@ module FakeS3
       obj.name = dst_name
       obj.md5 = src_metadata[:md5]
       obj.content_type = src_metadata[:content_type]
+      obj.content_disposition=src_metadata[:content_disposition] if src_metadata[:content_disposition]
       obj.size = src_metadata[:size]
       obj.modified_date = src_metadata[:modified_date]
 
