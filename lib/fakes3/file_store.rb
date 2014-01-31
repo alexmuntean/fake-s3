@@ -16,10 +16,41 @@ module FakeS3
       @bucket_hash = {}
       Dir[File.join(root,"*")].each do |bucket|
         bucket_name = File.basename(bucket)
-        bucket_obj = Bucket.new(bucket_name,Time.now,[])
+
+        object_list = get_object_list(bucket_name, "#{bucket}/*")
+
+        bucket_obj = Bucket.new(bucket_name,Time.now,object_list)
         @buckets << bucket_obj
         @bucket_hash[bucket_name] = bucket_obj
       end
+    end
+
+    def get_object_list(bucket_name, folder)
+      object_list = []
+      Dir[folder].each do |subfolder|
+        found_metadata = false
+        Dir["#{subfolder}/{*,.*}"].each do |subfolder_children| 
+          subfolder_children_name = File.basename(subfolder_children)
+          if subfolder_children_name=="." or subfolder_children_name==".."
+            next
+          end
+
+          if(subfolder_children_name.start_with?(SHUCK_METADATA_DIR))
+            found_metadata = true
+          else
+            object_list.concat(get_object_list(bucket_name, subfolder_children))
+          end
+        end
+
+        if(found_metadata)
+          matches = subfolder.match(/#{bucket_name}\/(.*)$/)
+          object_name=matches[1]
+          object_list<<get_object(bucket_name, object_name, nil)
+        end
+
+      end
+
+      object_list
     end
 
     # Pass a rate limit in bytes per second
