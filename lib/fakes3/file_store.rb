@@ -14,19 +14,18 @@ module FakeS3
       @root = root
       @buckets = []
       @bucket_hash = {}
-      Dir[File.join(root,"*")].each do |bucket|
-        bucket_name = File.basename(bucket)
+      Dir[File.join(root,"*")].each do |bucket_path|
+        bucket_name = File.basename(bucket_path)
 
-        object_list = get_object_list(bucket_name, "#{bucket}/*")
-
-        bucket_obj = Bucket.new(bucket_name,Time.now,object_list)
+        bucket_obj = Bucket.new(bucket_name,Time.now,self,bucket_path)
         @buckets << bucket_obj
         @bucket_hash[bucket_name] = bucket_obj
       end
     end
 
-    def get_object_list(bucket_name, folder)
-      object_list = []
+    def object_list(bucket_name, bucket)
+      folder = "#{bucket}/*"
+
       Dir[folder].each do |subfolder|
         found_metadata = false
         Dir["#{subfolder}/{*,.*}"].each do |subfolder_children| 
@@ -38,19 +37,16 @@ module FakeS3
           if(subfolder_children_name.start_with?(SHUCK_METADATA_DIR))
             found_metadata = true
           else
-            object_list.concat(get_object_list(bucket_name, subfolder_children))
+            yield get_object_list(bucket_name, subfolder_children)
           end
         end
 
         if(found_metadata)
           matches = subfolder.match(/#{bucket_name}\/(.*)$/)
           object_name=matches[1]
-          object_list<<get_object(bucket_name, object_name, nil)
+          yield get_object(bucket_name, object_name, nil)
         end
-
       end
-
-      object_list
     end
 
     # Pass a rate limit in bytes per second
@@ -177,8 +173,8 @@ module FakeS3
       obj.modified_date = src_metadata[:modified_date]
 
       src_obj = src_bucket.find(src_name)
-      dst_bucket.add(obj)
-      src_bucket.remove(src_obj)
+      #dst_bucket.add(obj)
+      #src_bucket.remove(src_obj)
       return obj
     end
 
@@ -224,7 +220,7 @@ module FakeS3
         obj.size = metadata_struct[:size]
         obj.modified_date = metadata_struct[:modified_date]
         
-        bucket.add(obj)
+        #bucket.add(obj)
         return obj
       rescue
         puts $!

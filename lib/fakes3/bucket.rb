@@ -1,40 +1,22 @@
 require 'builder'
 require 'thread'
 require 'fakes3/s3_object'
-require 'fakes3/sorted_object_list'
+require 'fakes3/object_list_file_store'
 
 module FakeS3
   class Bucket
     attr_accessor :name,:creation_date,:objects
 
-    def initialize(name,creation_date,objects)
+    def initialize(name,creation_date,file_store,bucket_path)
       @name = name
       @creation_date = creation_date
-      @objects = SortedObjectList.new
-      objects.each do |obj|
-        @objects.add(obj)
-      end
+      @objects = ObjectListFileStore.new(name, bucket_path, file_store)
       @mutex = Mutex.new
     end
 
     def find(object_name)
       @mutex.synchronize do
         @objects.find(object_name)
-      end
-    end
-
-    def add(object)
-      # Unfortunately have to synchronize here since the our SortedObjectList
-      # not thread safe. Probably can get finer granularity if performance is
-      # important
-      @mutex.synchronize do
-        @objects.add(object)
-      end
-    end
-
-    def remove(object)
-      @mutex.synchronize do
-        @objects.remove(object)
       end
     end
 
@@ -59,6 +41,5 @@ module FakeS3
       bq.is_truncated = match_set.is_truncated
       return bq
     end
-
   end
 end
